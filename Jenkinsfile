@@ -34,6 +34,7 @@ pipeline {
                 sh """
 
                 docker build -t deepakgajula/backend:${appVersion}
+                docker images
                 """
             }
         }
