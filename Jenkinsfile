@@ -23,9 +23,9 @@ pipeline {
                 }
             }
         }
-        stage('Test') { 
+        stage('Install Dependencies') { 
             steps {
-                sh 'echo this is build'
+                sh 'npm install'
             }
         }
         stage('Deploy') { 
