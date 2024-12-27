@@ -38,6 +38,9 @@ pipeline {
                 ////error 'pipeline failed'
             }
         }
+
+    }
+
        
 
     post {
@@ -47,8 +50,6 @@ pipeline {
         }
     }
 
-
-}
 
 }
 
