@@ -5,23 +5,20 @@ pipeline {
     options {
         timeout(time: 10, unit: 'MINUTES')
         disableConcurrentBuilds()
-        retry(1)
+        //retry(1)
     }
-    parameters {
-        string(name: 'PERSON', defaultValue: 'Mr Jenkins', description: 'Who should I say hello to?')
-        text(name: 'BIOGRAPHY', defaultValue: '', description: 'Enter some information about the person')
 
-        booleanParam(name: 'TOGGLE', defaultValue: true, description: 'Toggle this value')
-
-        choice(name: 'CHOICE', choices: ['One', 'Two', 'Three'], description: 'Pick something')
-
-        password(name: 'PASSWORD', defaultValue: 'SECRET', description: 'Enter a password')
+    environment {
+        DEBUG = 'true'
+        appVersion = '' //this will become global, we can use across pipelines
     }
+
     stages {
-        stage('Build') { 
+        stage('Read the version') { 
             steps {
-                sh 'echo this is build'
-                sh 'sleep 10'
+               def packageJson = readJSON file: 'package.json'
+               appVersion = packageJson.version
+               echo "App version: ${appVersion}"
             }
         }
         stage('Test') { 
@@ -39,33 +36,6 @@ pipeline {
                 ////error 'pipeline failed'
             }
         }
-        stage('Print Params') {
-            steps{
-                echo "Hello ${params.PERSON}"
-
-                echo "Biography: ${params.BIOGRAPHY}"
-
-                echo "Toggle: ${params.TOGGLE}"
-
-                echo "Choice: ${params.CHOICE}"
-
-                echo "Password: ${params.PASSWORD}"
-            }
-        }
-        stage('Approval') {
-            input {
-                message "Should we continue?"
-                ok "Yes, we should."
-                submitter "alice,bob"
-                parameters {
-                    string(name: 'PERSON', defaultValue: 'Mr Jenkins', description: 'Who should I say hello to?')
-                }
-            }
-             steps {
-            echo "Hello, ${PERSON}, nice to meet you"
-            }
-        }
-    }
        
 
     post {
