@@ -1,56 +1,99 @@
 pipeline {
     agent {
-        label 'Agent-1'
+        label 'AGENT-1'
     }
-    options {
-        timeout(time: 10, unit: 'MINUTES')
+    options{
+        timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
         //retry(1)
     }
-
+    parameters{
+        booleanParam(name: 'deploy', defaultValue: false, description: 'Select to deploy or not')
+    }
     environment {
         DEBUG = 'true'
-        appVersion = '' //this will become global, we can use across pipelines
+        appVersion = '' // this will become global, we can use across pipeline
+        region = 'us-east-1'
+        account_id = '471112969945'
+        project = 'expense'
+        environment = 'dev'
+        component = 'backend'
     }
 
     stages {
-        stage('Read the version') { 
+        stage('Read the version') {
             steps {
-                script {
+                script{
                     def packageJson = readJSON file: 'package.json'
                     appVersion = packageJson.version
                     echo "App version: ${appVersion}"
                 }
             }
         }
-        stage('Install Dependencies') { 
+        stage('Install Dependencies') {
             steps {
                 sh 'npm install'
             }
         }
-        stage('Deploy build') { 
-
+        /* stage('SonarQube analysis') {
+            environment {
+                SCANNER_HOME = tool 'sonar-6.0' //scanner config
+            }
             steps {
-                sh """
-
-                docker build -t deepakgajula/backend:${appVersion} .
-                docker images
-                """
+                // sonar server injection
+                withSonarQubeEnv('sonar-6.0') {
+                    sh '$SCANNER_HOME/bin/sonar-scanner'
+                    //generic scanner, it automatically understands the language and provide scan results
+                }
             }
         }
 
-    }
+        stage('SQuality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        } */
+        stage('Docker build') {
+            
+            steps {
+                withAWS(region: 'us-east-1', credentials: 'aws-creds') {
+                    sh """
+                    aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${account_id}.dkr.ecr.us-east-1.amazonaws.com
 
-       
+                    docker build -t ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${environment}/${component}:${appVersion} .
+
+                    docker images
+
+                    docker push ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${environment}/${component}:${appVersion}
+                    """
+                }
+            }
+        }
+        stage('Deploy'){
+            when {
+                expression { params.deploy }
+            }
+            steps{
+                build job: 'backend-cd', parameters: [
+                    string(name: 'version', value: "$appVersion"),
+                    string(name: 'ENVIRONMENT', value: "dev"),
+                ], wait: true
+            }
+        }
+    }
 
     post {
         always{
             echo "This sections runs always"
             deleteDir()
         }
+        success{
+            echo "This section run when pipeline success"
+        }
+        failure{
+            echo "This section run when pipeline failure"
+        }
     }
-
-
 }
-
-
