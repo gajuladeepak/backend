@@ -1,5 +1,5 @@
 configMap:
-  db_host: expense-dev.czn6yzxlcsiv.us-east-1.rds.amazonaws.com  # reds end point
+  db_host: expense-dev.czn6yzxlcsiv.us-east-1.rds.amazonaws.com  # rds end point
 deployment:
   imageURL: 471112969945.dkr.ecr.us-east-1.amazonaws.com/expense/dev/backend
   imageVersion: IMAGE_VERSION

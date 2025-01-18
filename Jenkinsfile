@@ -7,14 +7,11 @@ pipeline {
         disableConcurrentBuilds()
         //retry(1)
     }
-    parameters{
-        booleanParam(name: 'deploy', defaultValue: false, description: 'Select to deploy or not')
-    }
     environment {
         DEBUG = 'true'
         appVersion = '' // this will become global, we can use across pipeline
         region = 'us-east-1'
-        account_id = '471112969945'
+        account_id = '315069654700'
         project = 'expense'
         environment = 'dev'
         component = 'backend'
@@ -62,7 +59,7 @@ pipeline {
                     sh """
                     aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${account_id}.dkr.ecr.us-east-1.amazonaws.com
 
-                    docker build -t ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${environment}/${component}:${appVersion} . 
+                    docker build -t ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${environment}/${component}:${appVersion} .
 
                     docker images
 
@@ -72,14 +69,15 @@ pipeline {
             }
         }
         stage('Deploy'){
-            when {
-                expression { params.deploy }
-            }
             steps{
-                build job: 'backend-cd', parameters: [
-                    string(name: 'version', value: "$appVersion"),
-                    string(name: 'ENVIRONMENT', value: "dev"),
-                ], wait: true
+                withAWS(region: 'us-east-1', credentials: 'aws-creds') {
+                    sh """
+                        aws eks update-kubeconfig --region ${region} --name ${project}-${environment}
+                        cd helm
+                        sed -i 's/IMAGE_VERSION/${appVersion}/g' values-${environment}.yaml
+                        helm upgrade --install ${component} -n ${project} -f values-${environment}.yaml .
+                    """
+                }
             }
         }
     }
