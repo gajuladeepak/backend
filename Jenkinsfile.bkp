@@ -17,11 +17,6 @@ pipeline {
         component = 'backend'
     }
 
-    parameters {
-
-        booleanParam(name: 'deploy', defaultValue: true, description: 'Go for deployment')
-    }
-
     stages {
         stage('Read the version') {
             steps {
@@ -58,10 +53,6 @@ pipeline {
             }
         } */
         stage('Docker build') {
-
-            when {
-                expression { params.deploy }
-            }
             
             steps {
                 withAWS(region: 'us-east-1', credentials: 'aws-creds') {
@@ -78,16 +69,18 @@ pipeline {
             }
         }
         stage('Deploy'){
-            when {
-                expression { params.ACTION == 'apply' }
-            }
-                
             steps{
-                build job: 'backend-deploy', parameters: [string(name: 'ACTION', value: "apply")], wait: false
+                withAWS(region: 'us-east-1', credentials: 'aws-creds') {
+                    sh """
+                        aws eks update-kubeconfig --region ${region} --name ${project}-${environment}
+                        cd helm
+                        sed -i 's/IMAGE_VERSION/${appVersion}/g' values-${environment}.yaml
+                        helm upgrade --install ${component} -n ${project} -f values-${environment}.yaml .
+                    """
+                }
             }
         }
     }
-
 
     post {
         always{
